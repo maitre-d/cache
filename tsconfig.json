@@ -4,7 +4,7 @@
     "target": "es6",
     "lib": ["es2020"],
     "module": "commonjs",
-    "rootDir": "./src",
+    "rootDir": ".",
     "outDir": "./dist",
     "types": ["jest-extended", "jest"],
     "esModuleInterop": true,
