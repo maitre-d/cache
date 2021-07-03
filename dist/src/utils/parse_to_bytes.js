@@ -5,8 +5,8 @@ exports.parse_to_bytes = void 0;
 function parse_to_bytes(str) {
     if (typeof str === 'number')
         return str;
-    const size = parseInt(str, 10);
-    const size_key = str.replace(/^[0-9]+/, '').toLowerCase();
+    var size = parseInt(str, 10);
+    var size_key = str.replace(/^[0-9]+/, '').toLowerCase();
     switch (size_key) {
         case 'gb':
             return size * 1E9;

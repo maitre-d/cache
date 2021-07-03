@@ -4,7 +4,7 @@ A simple, high performance caching library with support for generic cache driver
 ## Supported Drivers
 Maitre'd Cache supports the following drivers:
 - Memory [Synchronous]
-- Redis [Asynchronous] (**[IORedis](https://github.com/luin/ioredis#readme)**) {NodeJS Only}
+- Redis [Asynchronous] (NodeJS Only) **[#See IORedis](https://github.com/luin/ioredis#readme)**
 
 **NOTE**: _The cache interface is promise based unless using the memory driver directly, in which case it will 
 be synchronous._

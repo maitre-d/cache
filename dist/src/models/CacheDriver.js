@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -7,6 +18,33 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
 };
 var __rest = (this && this.__rest) || function (s, e) {
     var t = {};
@@ -24,10 +62,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CacheDriver = void 0;
-const lodash_1 = __importDefault(require("lodash"));
-const string_hash_1 = __importDefault(require("string-hash"));
-class CacheDriver {
-    constructor(options) {
+var lodash_1 = __importDefault(require("lodash"));
+var string_hash_1 = __importDefault(require("string-hash"));
+var CacheDriver = /** @class */ (function () {
+    function CacheDriver(options) {
         this._id = Math.random().toString(36).substr(2, 9);
         this.name = options.name;
         this.timeout = options.timeout;
@@ -35,36 +73,48 @@ class CacheDriver {
         this.omit_partials = options.omit_partials || [];
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    get(key) {
+    CacheDriver.prototype.get = function (key) {
         throw new Error('Not implemented');
-    }
+    };
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    set(key, value, expiration, segments) {
+    CacheDriver.prototype.set = function (key, value, expiration, segments) {
         throw new Error('Not implemented');
-    }
-    fetch(key, cb, options = {}) {
-        return __awaiter(this, void 0, void 0, function* () {
-            options = Object.assign({ timeout: this.timeout, force_new: false, segments: [] }, options);
-            let value;
-            if (!options.force_new) {
-                value = yield this.get(key);
-            }
-            if (typeof value === 'undefined') {
-                value = yield cb();
-                // We don't need to wait for the value to be set
-                this.set(key, value, options.timeout, options.segments);
-            }
-            return value;
+    };
+    CacheDriver.prototype.fetch = function (key, cb, options) {
+        if (options === void 0) { options = {}; }
+        return __awaiter(this, void 0, void 0, function () {
+            var value;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        options = __assign({ timeout: this.timeout, force_new: false, segments: [] }, options);
+                        if (!!options.force_new) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.get(key)];
+                    case 1:
+                        value = _a.sent();
+                        _a.label = 2;
+                    case 2:
+                        if (!(typeof value === 'undefined')) return [3 /*break*/, 4];
+                        return [4 /*yield*/, cb()];
+                    case 3:
+                        value = _a.sent();
+                        // We don't need to wait for the value to be set
+                        this.set(key, value, options.timeout, options.segments);
+                        _a.label = 4;
+                    case 4: return [2 /*return*/, value];
+                }
+            });
         });
-    }
-    flatten_cache_key(partials) {
+    };
+    CacheDriver.prototype.flatten_cache_key = function (partials) {
+        var _this = this;
         if (!Array.isArray(partials))
             partials = [partials];
-        return partials.reduce((encoded, partial) => {
-            this.omit_partials.forEach((omit) => {
+        return partials.reduce(function (encoded, partial) {
+            _this.omit_partials.forEach(function (omit) {
                 if (lodash_1.default.has(partial, omit)) {
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const _a = partial, _b = omit, _delete = _a[_b], withoutOmit = __rest(_a, [typeof _b === "symbol" ? _b : _b + ""]);
+                    var _a = partial, _b = omit, _delete = _a[_b], withoutOmit = __rest(_a, [typeof _b === "symbol" ? _b : _b + ""]);
                     partial = withoutOmit;
                 }
             });
@@ -76,48 +126,53 @@ class CacheDriver {
                 encoded.push('' + string_hash_1.default(JSON.stringify(partial)));
             return encoded;
         }, []).join(':');
-    }
+    };
     /** Encode keys with namespace information */
-    generate_encoded_cache_key(...partials_all) {
+    CacheDriver.prototype.generate_encoded_cache_key = function () {
+        var partials_all = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            partials_all[_i] = arguments[_i];
+        }
         return this.namespace + ':' + this.flatten_cache_key(lodash_1.default.flatten(partials_all));
-    }
+    };
     /** Parse segments options into segment strings for segment caching */
-    parse_segments_to_cache(segments, value) {
-        return segments.reduce((parsed, segment) => {
+    CacheDriver.prototype.parse_segments_to_cache = function (segments, value) {
+        return segments.reduce(function (parsed, segment) {
             if (lodash_1.default.isFunction(segment)) {
-                const resolved = segment(value);
+                var resolved = segment(value);
                 if (Array.isArray(resolved))
-                    parsed.push(...resolved);
+                    parsed.push.apply(parsed, resolved);
                 else
                     parsed.push(resolved);
             }
             else if (Array.isArray(segment))
-                parsed.push(...segment);
+                parsed.push.apply(parsed, segment);
             else
                 parsed.push(segment);
             return parsed;
         }, [])
-            .filter((segment) => !lodash_1.default.isNil(segment));
-    }
-    parse_targeted_segments(key) {
-        const possible_segments = key.substring(0, key.indexOf('*'))
+            .filter(function (segment) { return !lodash_1.default.isNil(segment); });
+    };
+    CacheDriver.prototype.parse_targeted_segments = function (key) {
+        var possible_segments = key.substring(0, key.indexOf('*'))
             .split(':')
-            .filter((partial) => partial.length > 0);
-        return possible_segments.reduce((segments, segment) => {
+            .filter(function (partial) { return partial.length > 0; });
+        return possible_segments.reduce(function (segments, segment) {
             if (segments.length > 0) {
-                const last_segment = segments[segments.length - 1];
+                var last_segment = segments[segments.length - 1];
                 segments.push([last_segment, segment].join(':'));
             }
             else
                 segments.push(segment);
             return segments;
         }, [])
-            .filter((segment) => segment.length > 0);
-    }
-    parse_wildcard_to_regex(wildcard_string) {
-        const escaped_wildcard_string = lodash_1.default.escapeRegExp(wildcard_string).replace(/\\\*/g, '(.+)') + '$';
+            .filter(function (segment) { return segment.length > 0; });
+    };
+    CacheDriver.prototype.parse_wildcard_to_regex = function (wildcard_string) {
+        var escaped_wildcard_string = lodash_1.default.escapeRegExp(wildcard_string).replace(/\\\*/g, '(.+)') + '$';
         return new RegExp('^' + this.namespace + ':' + escaped_wildcard_string);
-    }
-}
+    };
+    return CacheDriver;
+}());
 exports.CacheDriver = CacheDriver;
 //# sourceMappingURL=CacheDriver.js.map
