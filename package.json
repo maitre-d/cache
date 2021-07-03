@@ -12,6 +12,7 @@
   "keywords": [
     "cache"
   ],
+  "homepage": "https://github.com/maitre-d/cache",
   "author": "Ryann Jones",
   "license": "ISC",
   "dependencies": {
