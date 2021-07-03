@@ -1,7 +1,16 @@
-import type {CacheSegment, CacheSegmentHandler, CacheKeyPartial} from 'src/types';
+import type {CacheDriver as CacheDriverInterface} from 'src/interfaces/CacheDriver';
+import type {
+  CacheSegment,
+  CacheSegmentHandler,
+  CacheKeyPartial,
+  CacheHandler,
+  CacheHandlerOptions,
+  CacheSegments
+} from 'src/types'
 
 import _ from 'lodash';
 import StringHash from 'string-hash';
+
 
 export type CacheDriverOptions = {
   name: string;
@@ -10,7 +19,7 @@ export type CacheDriverOptions = {
   omit_partials?: string[];
 }
 
-export class CacheDriver {
+export class CacheDriver implements Partial<CacheDriverInterface> {
   _id: string;
   name: string;
   namespace: string;
@@ -23,6 +32,39 @@ export class CacheDriver {
     this.timeout = options.timeout;
     this.namespace = options.namespace || 'cache';
     this.omit_partials = options.omit_partials || [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  get(key: CacheKeyPartial): (unknown|Promise<unknown>) {
+    throw new Error('Not implemented');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  set(key: CacheKeyPartial, value: unknown, expiration?: number, segments?: CacheSegments): (boolean|Promise<boolean>) {
+    throw new Error('Not implemented');
+  }
+
+  async fetch(key: CacheKeyPartial, cb: CacheHandler, options: CacheHandlerOptions = {}): Promise<unknown> {
+    options = {
+      timeout: this.timeout,
+      force_new: false,
+      segments: [],
+      ...options
+    }
+
+    let value;
+    if (!options.force_new) {
+      value = await this.get(key);
+    }
+
+    if (typeof value === 'undefined') {
+      value = await cb();
+
+      // We don't need to wait for the value to be set
+      this.set(key, value, options.timeout, options.segments);
+    }
+
+    return value;
   }
 
   flatten_cache_key(partials: CacheKeyPartial): string {

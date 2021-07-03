@@ -49,6 +49,7 @@ const MemoryCache = class MemoryCache {
 }
 
 export class MemoryCacheDriver extends CacheDriver implements CacheDriverInterface {
+  static CleanupStrategies = MemoryCacheCleanupStrategies
   options: MemoryCacheOptions
   _cache: MemoryCacheType
 
@@ -124,7 +125,7 @@ export class MemoryCacheDriver extends CacheDriver implements CacheDriverInterfa
     return freed;
   }
 
-  fetch(key: CacheKeyPartial): unknown {
+  get(key: CacheKeyPartial): unknown {
     const cache_key = this.generate_encoded_cache_key(key);
     const cached_value = this._cache.values[cache_key];
     if (cached_value) {
@@ -144,7 +145,8 @@ export class MemoryCacheDriver extends CacheDriver implements CacheDriverInterfa
     return undefined;
   }
 
-  set(key: CacheKeyPartial, value: unknown, expiration: number = this.options.timeout, segments: CacheSegments = []): boolean {
+  set(key: CacheKeyPartial, value: unknown, expiration?: number, segments: CacheSegments = []): boolean {
+    if (!_.isNumber(expiration)) expiration = this.timeout;
     if (!_.isArray(segments)) segments = [segments];
 
     const cache_key = this.generate_encoded_cache_key(key);

@@ -7,3 +7,8 @@ export type CacheHandler = (...params: unknown[]) => (unknown|Promise<unknown>);
 export type CacheSegmentHandler = (result: unknown) => (string|string[]);
 export type CacheSegments = CacheSegment|CacheSegmentHandler|(CacheSegment|CacheSegmentHandler)[];
 export type CacheSegment = string;
+export type CacheHandlerOptions = {
+  timeout?: number;
+  force_new?: boolean;
+  segments?: (CacheSegment|CacheSegmentHandler)[]
+}

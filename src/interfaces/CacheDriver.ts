@@ -1,4 +1,4 @@
-import type {CacheSegment, CacheSegments, CacheKeyPartial} from 'src/types';
+import type {CacheSegment, CacheSegments, CacheKeyPartial, CacheHandlerOptions, CacheHandler} from 'src/types'
 
 export interface CacheDriver {
   /** A unique ID generated for this instance */
@@ -16,11 +16,14 @@ export interface CacheDriver {
   /** Partial keys to omit from being encoded */
   omit_partials: string[];
 
-  /** Fetches a value from the cache */
-  fetch: (key: CacheKeyPartial) => (unknown|Promise<unknown>);
+  /** Fetches a value from the cache or the provided callback */
+  fetch: (key: CacheKeyPartial, cb: CacheHandler, options: CacheHandlerOptions) => Promise<unknown>;
+
+  /** Gets a value from the cache */
+  get: (key: CacheKeyPartial) => (unknown|Promise<unknown>);
 
   /** Sets a value in the cache */
-  set: (key: CacheKeyPartial, value: unknown, expiration: number, segments?: CacheSegments) => (boolean|Promise<boolean>);
+  set: (key: CacheKeyPartial, value: unknown, expiration?: number, segments?: CacheSegments) => (boolean|Promise<boolean>);
 
   /** Delete a value from the cache */
   delete: (key: CacheKeyPartial, segments: CacheSegment|CacheSegment[]) => (number|Promise<number>);

@@ -19,6 +19,19 @@ describe('Cache', function() {
 	beforeEach(async () => Cache.flush());
 	afterAll(async () => client.disconnect());
 
+	describe('fetch', () => {
+		it('Should generate and set a value if unset', async () => {
+			expect(await Cache.get('foo')).toBeUndefined();
+			expect(await Cache.fetch('foo', () => 'bar')).toEqual('bar');
+			expect(await Cache.get('foo')).toEqual('bar');
+		});
+
+		it('Should return the set value if found', async () => {
+			await Cache.set('foo', 'bar');
+			expect(await Cache.fetch('foo', () => 'baz')).toEqual('bar');
+		});
+	});
+
 	describe('set', () => {
 		it('Should return true to indicate a value was set in the cache', async () => {
 			const key = 'foo';
@@ -44,7 +57,7 @@ describe('Cache', function() {
 			const equivalent_key = ['foo', { }, true];
 			expect(await Cache.set(equivalent_key, 'bat')).toBeTrue(); // Equivalent
 			expect(await Cache.set(['foo', { refresh: true }, true], 'bar')).toBeTrue();
-			expect(await Cache.fetch(equivalent_key)).toEqual('bar');
+			expect(await Cache.get(equivalent_key)).toEqual('bar');
 		});
 
 		it('Should set values into their respective segments within the cache', async () => {
@@ -68,12 +81,12 @@ describe('Cache', function() {
 		});
 	});
 
-	describe('fetch', () => {
-		it('Should fetch the cache value using the cache_key', async () => {
+	describe('get', () => {
+		it('Should get the cache value using the cache_key', async () => {
 			const key = 'foo';
 			const value = { foo: 'bar' };
 			await Cache.set(key, value);
-			const cached_value = await Cache.fetch(key);
+			const cached_value = await Cache.get(key);
 
 			expect(cached_value).toEqual(value);
 		});
@@ -83,7 +96,7 @@ describe('Cache', function() {
 			const value = 'bar';
 			await Cache.set(key, value, 1);
 			await new Promise<void>((resolve) => setTimeout(() => resolve(), 5));
-			const cached_value = await Cache.fetch(key);
+			const cached_value = await Cache.get(key);
 			expect(cached_value).toBeUndefined();
 		});
 	});
@@ -94,7 +107,7 @@ describe('Cache', function() {
 			const value = 'bar';
 			await Cache.set(key, value);
 			expect(await Cache.delete(key)).toEqual(1);
-			const cached_value = await Cache.fetch(key);
+			const cached_value = await Cache.get(key);
 			expect(cached_value).toBeUndefined();
 		});
 
@@ -133,9 +146,9 @@ describe('Cache', function() {
 			expect(await Cache.delete('*')).toEqual(0);
 
 			const keys = await Promise.all([
-				Cache.fetch('foo'),
-				Cache.fetch('bing'),
-				Cache.fetch('boo')
+				Cache.get('foo'),
+				Cache.get('bing'),
+				Cache.get('boo')
 			]);
 			expect(keys[0]).not.toBeUndefined();
 			expect(keys[1]).not.toBeUndefined();
@@ -153,9 +166,9 @@ describe('Cache', function() {
 			expect(await Cache.delete('*', [], true)).toEqual(5);
 
 			const keys = await Promise.all([
-				Cache.fetch('foo'),
-				Cache.fetch('bing'),
-				Cache.fetch('boo')
+				Cache.get('foo'),
+				Cache.get('bing'),
+				Cache.get('boo')
 			]);
 			expect(keys[0]).toBeUndefined();
 			expect(keys[1]).toBeUndefined();
@@ -172,9 +185,9 @@ describe('Cache', function() {
 			expect(await Cache.delete('*', 'foo')).toEqual(0);
 
 			const keys = await Promise.all([
-				Cache.fetch('foo'),
-				Cache.fetch('bing'),
-				Cache.fetch('boo')
+				Cache.get('foo'),
+				Cache.get('bing'),
+				Cache.get('boo')
 			]);
 			expect(keys[0]).not.toBeUndefined();
 			expect(keys[1]).not.toBeUndefined();
@@ -185,7 +198,7 @@ describe('Cache', function() {
 			await Cache.set('foo', 'bar', -1, 'foo');
 			await Cache.set('bing', 'bat', -1, 'foo');
 			expect(await Cache.delete('bing', 'foo')).toEqual(1);
-			expect(await Cache.fetch('foo')).not.toBeUndefined();
+			expect(await Cache.get('foo')).not.toBeUndefined();
 		});
 
 		it('Should further filter the segmented keys if a wildcard has additional filtering', async () => {
@@ -195,7 +208,7 @@ describe('Cache', function() {
 				Cache.set('bing:boo', 'boo', -1, 'foo')
 			]);
 			expect(await Cache.delete('bing:*', 'foo')).toEqual(2);
-			expect(await Cache.fetch('foo')).not.toBeUndefined();
+			expect(await Cache.get('foo')).not.toBeUndefined();
 		});
 
 		it('Should automatically look for a segment if a wildcard key is passed without segments', async () => {

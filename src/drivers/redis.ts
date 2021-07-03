@@ -79,8 +79,8 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
     });
   }
 
-  /** Fetch a cached value from redis */
-  async fetch(key: CacheKeyPartial): Promise<unknown> {
+  /** Get a cached value from redis */
+  async get(key: CacheKeyPartial): Promise<unknown> {
     const cache_key = this.generate_encoded_cache_key(key);
 
     return new Promise((resolve, reject) => {
@@ -106,8 +106,9 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
   async set(
     key: CacheKeyPartial,
     value: unknown,
-    expiration: number = this.timeout,
+    expiration?: number,
     segments: CacheSegments = []): Promise<boolean> {
+    if (!_.isNumber(expiration)) expiration = this.timeout;
     if (!_.isArray(segments)) segments = [segments];
 
     const cache_key = this.generate_encoded_cache_key(key);
@@ -122,7 +123,7 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
     let resolved;
     if (expiration > 0) {
       resolved = new Promise((resolve, reject) => {
-        this.pipeline.set(cache_key, encoded_value as RedisCachedValue, 'PX', expiration, (err, result) => {
+        this.pipeline.set(cache_key, encoded_value as RedisCachedValue, 'PX', expiration as number, (err, result) => {
           if (err) reject(err);
           else resolve(result);
         });

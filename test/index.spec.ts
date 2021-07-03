@@ -9,8 +9,6 @@ const client = new Redis();
 const RedisCache = new RedisDriver(client, {
 	name: 'test',
 	timeout: 10,
-	namespace: 'test',
-	omit_partials: ['refresh'],
 	flush_interval: 5,
 	max_queue_size: 100
 });
@@ -44,7 +42,7 @@ describe('Cache', function() {
 			const value = 'bar';
 			const cb = jest.fn(() => value);
 
-			const result = await Cache.get(key, cb, { timeout: 1, force_new: false });
+			const result = await Cache.fetch(key, cb, { timeout: 1, force_new: false });
 			expect(result).toEqual(value);
 			expect(cb.mock.calls.length).toBe(1);
 		});

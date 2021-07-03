@@ -1,15 +1,9 @@
 import type {CacheDriver} from 'src/interfaces/CacheDriver';
-import type {CacheHandler, CacheSegment, CacheSegmentHandler, CacheSegments, CacheKeyPartial} from 'src/types'
+import type {CacheHandler, CacheSegment, CacheHandlerOptions, CacheSegments, CacheKeyPartial} from 'src/types'
 
 import _ from 'lodash';
 import {MemoryCacheDriver as MemoryDriver} from 'src/drivers/memory';
 import {RedisCacheDriver as RedisDriver} from 'src/drivers/redis';
-
-type CacheHandlerOptions = {
-  timeout: number;
-  force_new?: boolean;
-  segments?: (CacheSegment|CacheSegmentHandler)[]
-}
 
 type CacheOptions = {
   name: string;
@@ -21,6 +15,7 @@ type CacheOptions = {
     set?: string[];
     delete?: string[];
     flush?: string[];
+    cleanup?: string[];
   };
 }
 
@@ -40,13 +35,14 @@ export class Cache {
         set: [],
         delete: [],
         flush: [],
+        cleanup: [],
         ...(options.driver_methods || {})
       }
     };
   }
 
   /** Get a list of drivers which are active for the specified action */
-  get_active(action: ('fetch'|'set'|'delete'|'flush')): CacheDriver[] {
+  get_active(action: ('fetch'|'set'|'delete'|'cleanup'|'flush')): CacheDriver[] {
     return this.drivers.filter((driver) => {
       const drivers_list: string[] = this.options.driver_methods[action] as string[];
       const driver_included = drivers_list.includes(driver.name);
@@ -64,19 +60,19 @@ export class Cache {
     this.drivers.push(driver);
   }
 
-  async get(key: CacheKeyPartial, cb: CacheHandler, options: CacheHandlerOptions): Promise<unknown> {
-    const cache_options = {
+  async fetch(key: CacheKeyPartial, cb: CacheHandler, options: CacheHandlerOptions): Promise<unknown> {
+    options = {
       segments: [],
       force_new: false,
       ...options
-    };
+    }
 
     let value: unknown;
     const misses = [];
     const drivers = this.get_active('fetch');
-    if (!cache_options.force_new) {
+    if (!options.force_new) {
       for (const driver of drivers) {
-        [value] = await Promise.all([driver.fetch(key)])
+        [value] = await Promise.all([driver.get(key)])
         if (typeof value === 'undefined') misses.push(driver);
         else break;
       }
@@ -93,12 +89,12 @@ export class Cache {
   }
 
   /** Fetch a value from the active drivers */
-  async fetch(key: CacheKeyPartial): Promise<unknown> {
+  async get(key: CacheKeyPartial): Promise<unknown> {
     const drivers = this.get_active('fetch');
 
     let value;
     for (const driver of drivers) {
-      [value] = await Promise.all([driver.fetch(key)])
+      [value] = await Promise.all([driver.get(key)])
       if (typeof value !== 'undefined') break;
     }
 
@@ -127,6 +123,13 @@ export class Cache {
     return Promise.all(
       drivers.map((driver) =>
         driver.delete(key, segments))
+    ).then((results: number[]) => Math.max(...results));
+  }
+
+  async cleanup(): Promise<number> {
+    const drivers = this.get_active('cleanup');
+    return Promise.all(
+      drivers.map((driver) => driver.cleanup())
     ).then((results: number[]) => Math.max(...results));
   }
 

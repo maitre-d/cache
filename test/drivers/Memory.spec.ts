@@ -19,6 +19,19 @@ const generate_bytes = (bytes: number) =>
 describe('MemoryCache', function() {
 	beforeEach(() => Cache.flush());
 
+	describe('fetch', function () {
+		it('Should generate and set a value if unset', async () => {
+			expect(Cache.get('foo')).toBeUndefined();
+			expect(await Cache.fetch('foo', () => 'bar')).toEqual('bar');
+			expect(Cache.get('foo')).toEqual('bar');
+		});
+
+		it('Should return the set value if found', async () => {
+			Cache.set('foo', 'bar');
+			expect(await Cache.fetch('foo', () => 'baz')).toEqual('bar');
+		});
+	});
+
 	describe('set', function() {
 		it('Should return true to indicate a value was set in the cache', function() {
 			const key = 'foo';
@@ -108,8 +121,8 @@ describe('MemoryCache', function() {
 						status.push(Cache.set('fill' + i, generate_bytes(998)));
 					}
 
-					// Fetch something so we have a candidate to remove on the next set
-					Cache.fetch('fill0');
+					// Get something so we have a candidate to remove on the next set
+					Cache.get('fill0');
 
 					// >10kb
 					expect(Cache.set('val', generate_bytes(21))).toBeTrue();
@@ -131,27 +144,27 @@ describe('MemoryCache', function() {
 					}
 
 					// Access simulation stuff
-					Cache.fetch('fill1');
-					Cache.fetch('fill1');
-					Cache.fetch('fill2');
-					Cache.fetch('fill2');
-					Cache.fetch('fill2');
-					Cache.fetch('fill3');
+					Cache.get('fill1');
+					Cache.get('fill1');
+					Cache.get('fill2');
+					Cache.get('fill2');
+					Cache.get('fill2');
+					Cache.get('fill3');
 
 
 					expect(Cache.set('val', generate_bytes(100))).toBeTrue();
-					expect(Cache.fetch('fill2')).toBeUndefined();
+					expect(Cache.get('fill2')).toBeUndefined();
 				});
 			});
 		});
 	});
 
-	describe('fetch', function() {
-		it('Should fetch the cache value using the cache_key', function() {
+	describe('get', function() {
+		it('Should get the cache value using the cache_key', function() {
 			const key = 'foo';
 			const value = 'bar';
 			Cache.set(key, value);
-			const cached_value = Cache.fetch(key);
+			const cached_value = Cache.get(key);
 
 			expect(cached_value).toEqual(value);
 		});
@@ -161,7 +174,7 @@ describe('MemoryCache', function() {
 			const value = 'bar';
 			Cache.set(key, value, 1);
 			await new Promise<void>((resolve) => setTimeout(() => resolve(), 5));
-			const cached_value = Cache.fetch(key);
+			const cached_value = Cache.get(key);
 			expect(cached_value).toBeUndefined();
 		});
 	});
@@ -172,7 +185,7 @@ describe('MemoryCache', function() {
 			const value = 'bar';
 			Cache.set(key, value);
 			expect(Cache.delete(key)).toEqual(1);
-			const cached_value = Cache.fetch(key);
+			const cached_value = Cache.get(key);
 			expect(cached_value).toBeUndefined();
 		});
 
@@ -200,7 +213,7 @@ describe('MemoryCache', function() {
 		it('Should unset the access_counter for each key removed', function() {
 			Cache.set('foo', 'bar', -1, 'foo');
 			Cache.set('bing', 'bat', -1, 'foo');
-			Cache.fetch('foo'); // Increment the counter
+			Cache.get('foo'); // Increment the counter
 			expect(Object.keys(Cache._cache.access_counter)).toBeArrayOfSize(1);
 			expect(Cache.delete('*', 'foo')).toEqual(2);
 			expect(Object.keys(Cache._cache.access_counter)).toBeArrayOfSize(0);
@@ -211,9 +224,9 @@ describe('MemoryCache', function() {
 			Cache.set('bing', 'bat');
 			Cache.set('boo', 'baz');
 			expect(Cache.delete('*')).toEqual(3);
-			expect(Cache.fetch('foo')).toBeUndefined();
-			expect(Cache.fetch('bing')).toBeUndefined();
-			expect(Cache.fetch('boo')).toBeUndefined();
+			expect(Cache.get('foo')).toBeUndefined();
+			expect(Cache.get('bing')).toBeUndefined();
+			expect(Cache.get('boo')).toBeUndefined();
 		});
 
 		it('Should not remove anything if the segment is empty with a wildcard key', function() {
@@ -221,16 +234,16 @@ describe('MemoryCache', function() {
 			Cache.set('bing', 'bat');
 			Cache.set('boo', 'baz');
 			expect(Cache.delete('*', 'foo')).toEqual(0);
-			expect(Cache.fetch('foo')).not.toBeUndefined();
-			expect(Cache.fetch('bing')).not.toBeUndefined();
-			expect(Cache.fetch('boo')).not.toBeUndefined();
+			expect(Cache.get('foo')).not.toBeUndefined();
+			expect(Cache.get('bing')).not.toBeUndefined();
+			expect(Cache.get('boo')).not.toBeUndefined();
 		});
 
 		it('Should further filter the segmented keys if a key is provided', function() {
 			Cache.set('foo', 'bar', -1, 'foo');
 			Cache.set('bing', 'bat', -1, 'foo');
 			expect(Cache.delete('bing', 'foo')).toEqual(1);
-			expect(Cache.fetch('foo')).not.toBeUndefined();
+			expect(Cache.get('foo')).not.toBeUndefined();
 		});
 
 		it('Should further filter the segmented keys if a wildcard has additional filtering', function() {
@@ -238,7 +251,7 @@ describe('MemoryCache', function() {
 			Cache.set('bing:bat', 'bat', -1, 'foo');
 			Cache.set('bing:boo', 'boo', -1, 'foo');
 			expect(Cache.delete('bing:*', 'foo')).toEqual(2);
-			expect(Cache.fetch('foo')).not.toBeUndefined();
+			expect(Cache.get('foo')).not.toBeUndefined();
 		});
 
 		it('Should automatically look for a segment if a wildcard key is passed without segments', function() {
