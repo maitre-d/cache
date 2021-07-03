@@ -262,12 +262,12 @@ export class MemoryCacheDriver extends CacheDriver implements CacheDriverInterfa
     const { failures } = lazy_exploration(Object.keys(this._cache.values), (cache_key) => {
       const cached_value: MemoryCachedValue = this._cache.values[cache_key];
       if (cached_value.expiration !== -1 && current_timestamp > cached_value.expiration) {
-        this._remove(cache_key);
+        this._remove(cache_key); //?.
         return false;
       }
 
       return true;
-    }, 20, 5) as {failures: number, samples: number};
+    }, 100, 20) as {failures: number, samples: number}; //?.
 
     return failures;
   }

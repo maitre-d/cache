@@ -37,6 +37,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.lazy_exploration = void 0;
+function shuffle(array) {
+    var _a;
+    for (var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        _a = [array[j], array[i]], array[i] = _a[0], array[j] = _a[1];
+    }
+}
 /** Explore a set until the minimum_trials is met or we exceed the retry interval */
 function lazy_exploration(set, 
 /** Callback, false indicates failure */
@@ -44,16 +51,16 @@ test, min_trials, failure_threshold) {
     var _this = this;
     if (min_trials === void 0) { min_trials = 20; }
     if (failure_threshold === void 0) { failure_threshold = 5; }
+    var trials = set.slice();
+    shuffle(trials); //?.
     var is_async_pending;
     var failures = 0;
     var samples = 0;
     var i = 0;
     var e = 0;
-    while (i < min_trials && set.length > 0) {
-        var random_key_index = Math.floor(Math.random() * set.length);
-        var random_key = set[random_key_index];
+    while (i < min_trials && trials.length > 0) {
+        var random_key = trials.pop();
         var status = test(random_key);
-        set.splice(random_key_index, 1);
         if (status instanceof Promise) {
             is_async_pending = status;
             break;
@@ -70,11 +77,11 @@ test, min_trials, failure_threshold) {
     }
     if (is_async_pending) {
         return (function () { return __awaiter(_this, void 0, void 0, function () {
-            var status, random_key_index, random_key;
+            var status, random_key;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(i < min_trials && set.length > 0)) return [3 /*break*/, 5];
+                        if (!(i < min_trials && trials.length > 0)) return [3 /*break*/, 5];
                         status = void 0;
                         if (!is_async_pending) return [3 /*break*/, 2];
                         return [4 /*yield*/, is_async_pending];
@@ -83,12 +90,10 @@ test, min_trials, failure_threshold) {
                         is_async_pending = undefined;
                         return [3 /*break*/, 4];
                     case 2:
-                        random_key_index = Math.floor(Math.random() * set.length);
-                        random_key = set[random_key_index];
+                        random_key = trials.pop();
                         return [4 /*yield*/, test(random_key)];
                     case 3:
                         status = _a.sent();
-                        set.splice(random_key_index, 1);
                         _a.label = 4;
                     case 4:
                         if (!status) {

@@ -24,6 +24,8 @@ type RedisCachedValue = string & { [validRedisCachedValue]: true };
 export class RedisCacheDriver extends CacheDriver implements CacheDriverInterface {
   count = 0;
   failed = 0;
+  pipeline_index = 0;
+  pending: {[index:number]: Promise<unknown>} = {};
   cache_delimiter = '__JSON__';
   segment_cache_key: string;
   options: RedisCacheOptions;
@@ -36,10 +38,12 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
 
   /** Returns the current queue size of request queue */
   get queue_size(): number {
-    // NOTE: _queue is the internal reference to pending commands
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    return this.pipeline._queue.length;
+    return this.pipeline.length;
+  }
+
+  /** Indicate if pipelines are pending response */
+  get is_pending(): boolean {
+    return Object.keys(this.pending).length > 0;
   }
 
   constructor(client: IORedis.Redis, options: RedisCacheOptions) {
@@ -59,24 +63,46 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
     this.flush_interval = setInterval(() => {
       const pipeline = this.pipeline;
       this.pipeline = this.client.pipeline();
-      pipeline.exec().then();
+
+      const exec_promise = pipeline.exec();
+      const pending_index = this.pipeline_index++;
+      this.pending[pending_index] = exec_promise;
+      exec_promise.then(() => {
+        delete this.pending[pending_index];
+      });
     }, this.options.flush_interval);
 
-    // Max queue size check
-    if (this.options.max_queue_size as number > 0) {
-      this.queue_interval = setInterval(() => {
-        if (this.queue_size > (this.options.max_queue_size as number)) {
-          const pipeline = this.pipeline;
-          this.pipeline = this.client.pipeline();
-          pipeline.exec().then();
-        }
-      }, 1);
-    }
-
-    client.on('end', () => {
+    client.on('end', async () => {
+      await this.wait();
       clearTimeout(this.flush_interval);
       if (this.queue_interval) clearTimeout(this.queue_interval);
     });
+  }
+
+  /** Wait for pending queues to clear */
+  async wait() {
+    await Promise.all(Object.values(this.pending));
+  }
+
+  $queue(command: string, params: unknown[], cb?: (err: Error, result: unknown) => void): void {
+    const current_pipeline = this.pipeline;
+    if (this.options.max_queue_size as number > 0) {
+      if (this.queue_size >= (this.options.max_queue_size as number)) {
+        this.pipeline = this.client.pipeline();
+        const exec_promise = current_pipeline.exec();
+        const pending_index = this.pipeline_index++;
+        this.pending[pending_index] = exec_promise;
+        exec_promise.then(() => {
+          delete this.pending[pending_index];
+        });
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const { [command]: func } = this.pipeline;
+    if (cb) func.call(this.pipeline, ...params, cb);
+    else func.call(this.pipeline, ...params);
   }
 
   /** Get a cached value from redis */
@@ -84,7 +110,7 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
     const cache_key = this.generate_encoded_cache_key(key);
 
     return new Promise((resolve, reject) => {
-      this.pipeline.get(cache_key, (err, result) => {
+      this.$queue('get', [cache_key], (err, result) => {
         if (err) reject(err);
         else resolve(result);
       });
@@ -123,7 +149,9 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
     let resolved;
     if (expiration > 0) {
       resolved = new Promise((resolve, reject) => {
-        this.pipeline.set(cache_key, encoded_value as RedisCachedValue, 'PX', expiration as number, (err, result) => {
+        this.$queue('set',
+          [cache_key, encoded_value as RedisCachedValue, 'PX', expiration as number],
+          (err, result) => {
           if (err) reject(err);
           else resolve(result);
         });
@@ -131,7 +159,8 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
     }
     else {
       resolved = new Promise((resolve, reject) => {
-        this.pipeline.set(cache_key, encoded_value as RedisCachedValue, (err, result) => {
+        this.$queue('set',
+          [cache_key, encoded_value as RedisCachedValue], (err, result) => {
           if (err) reject(err);
           else resolve(result);
         });
@@ -140,8 +169,8 @@ export class RedisCacheDriver extends CacheDriver implements CacheDriverInterfac
 
     // Set segments. We do not need to wait for these as they aren't necessary real-time
     cache_segments.forEach((segment_key) => {
-      this.pipeline.sadd(this.segment_cache_key, segment_key);
-      this.pipeline.sadd(segment_key, cache_key);
+      this.$queue('sadd', [this.segment_cache_key, segment_key]);
+      this.$queue('sadd', [segment_key, cache_key]);
     });
 
     return resolved.then((result) => {

@@ -15,6 +15,10 @@ export declare type RedisCacheOptions = {
 export declare class RedisCacheDriver extends CacheDriver implements CacheDriverInterface {
     count: number;
     failed: number;
+    pipeline_index: number;
+    pending: {
+        [index: number]: Promise<unknown>;
+    };
     cache_delimiter: string;
     segment_cache_key: string;
     options: RedisCacheOptions;
@@ -24,7 +28,12 @@ export declare class RedisCacheDriver extends CacheDriver implements CacheDriver
     queue_interval?: NodeJS.Timeout;
     /** Returns the current queue size of request queue */
     get queue_size(): number;
+    /** Indicate if pipelines are pending response */
+    get is_pending(): boolean;
     constructor(client: IORedis.Redis, options: RedisCacheOptions);
+    /** Wait for pending queues to clear */
+    wait(): Promise<void>;
+    $queue(command: string, params: unknown[], cb?: (err: Error, result: unknown) => void): void;
     /** Get a cached value from redis */
     get(key: CacheKeyPartial): Promise<unknown>;
     /** Cache a value in redis */

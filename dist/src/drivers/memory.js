@@ -245,11 +245,11 @@ var MemoryCacheDriver = /** @class */ (function (_super) {
         var failures = lazy_exploration_1.lazy_exploration(Object.keys(this._cache.values), function (cache_key) {
             var cached_value = _this._cache.values[cache_key];
             if (cached_value.expiration !== -1 && current_timestamp > cached_value.expiration) {
-                _this._remove(cache_key);
+                _this._remove(cache_key); //?.
                 return false;
             }
             return true;
-        }, 20, 5).failures;
+        }, 100, 20).failures; //?.
         return failures;
     };
     MemoryCacheDriver.prototype.flush = function () {

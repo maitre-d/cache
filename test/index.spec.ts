@@ -36,7 +36,7 @@ describe('Cache', function() {
 	beforeEach(async () => Cache.flush());
 	afterAll(async () => client.disconnect());
 
-	describe('get', function() {
+	describe('fetch', function() {
 		it('Should set the cache value using a callback function if unset.', async function() {
 			const key = 'foo';
 			const value = 'bar';
@@ -52,6 +52,15 @@ describe('Cache', function() {
 		it('Should return true to indicate a value was set in the cache', async function() {
 			const key = 'foo';
 			expect(await Cache.set(key, 'bar', 1)).toBeTrue();
+		});
+	});
+
+	describe('get', function() {
+		it('Should retrieve a value set in the cache', async function() {
+			const key = 'foo';
+			const value = 'bar';
+			await Cache.set(key, value);
+			expect(await Cache.get(key)).toEqual(value)
 		});
 	});
 
@@ -153,11 +162,9 @@ describe('Cache', function() {
 				set.push(Cache.set('test:' + i, generate_bytes(2), 100, segment)); //?.
 			}
 
-			+new Date() - +start; //?
-			await Promise.all(set); //?.
-
-			// Wait 100ms
-			await new Promise<void>((resolve) => setTimeout(() => resolve(), 100));
+			const time_to_set = +new Date() - +start; //?
+			await RedisCache.wait(); //?.
+			RedisCache.count; //?
 
 			expect(MemoryCache.count).toEqual(n);
 			expect(RedisCache.count).toBeGreaterThan(n * 0.8);
@@ -168,11 +175,12 @@ describe('Cache', function() {
 			//       millisecond precision.
 			const redis_results = await RedisCache.cleanup(); //?.
 			const memory_results = await MemoryCache.cleanup(); //?.
+
 			expect(memory_results).toEqual(n);
 			expect(redis_results).toBeGreaterThan(n * 0.7);
 			expect(RedisCache.failed).toEqual(0);
 			expect(RedisCache.count).toBeLessThan(n * 0.3);
 			expect(MemoryCache.count).toEqual(0);
-		}, 40000);
+		}, 60000);
 	});
 });

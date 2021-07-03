@@ -77,7 +77,7 @@ describe('Cache', function () {
     afterAll(function () { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
         return [2 /*return*/, client.disconnect()];
     }); }); });
-    describe('get', function () {
+    describe('fetch', function () {
         it('Should set the cache value using a callback function if unset.', function () {
             return __awaiter(this, void 0, void 0, function () {
                 var key, value, cb, result;
@@ -110,6 +110,28 @@ describe('Cache', function () {
                             return [4 /*yield*/, Cache.set(key, 'bar', 1)];
                         case 1:
                             _a.apply(void 0, [_b.sent()]).toBeTrue();
+                            return [2 /*return*/];
+                    }
+                });
+            });
+        });
+    });
+    describe('get', function () {
+        it('Should retrieve a value set in the cache', function () {
+            return __awaiter(this, void 0, void 0, function () {
+                var key, value, _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            key = 'foo';
+                            value = 'bar';
+                            return [4 /*yield*/, Cache.set(key, value)];
+                        case 1:
+                            _b.sent();
+                            _a = expect;
+                            return [4 /*yield*/, Cache.get(key)];
+                        case 2:
+                            _a.apply(void 0, [_b.sent()]).toEqual(value);
                             return [2 /*return*/];
                     }
                 });
@@ -253,7 +275,7 @@ describe('Cache', function () {
             });
         }); });
         it('Should be performant on cleanup', function () { return __awaiter(_this, void 0, void 0, function () {
-            var n, set, defined_segments, start, i, segment, redis_results, memory_results;
+            var n, set, defined_segments, start, i, segment, time_to_set, redis_results, memory_results;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -269,22 +291,18 @@ describe('Cache', function () {
                             }
                             set.push(Cache.set('test:' + i, generate_bytes(2), 100, segment)); //?.
                         }
-                        +new Date() - +start; //?
-                        return [4 /*yield*/, Promise.all(set)];
+                        time_to_set = +new Date() - +start;
+                        return [4 /*yield*/, RedisCache.wait()];
                     case 1:
                         _a.sent(); //?.
-                        // Wait 100ms
-                        return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(function () { return resolve(); }, 100); })];
-                    case 2:
-                        // Wait 100ms
-                        _a.sent();
+                        RedisCache.count; //?
                         expect(MemoryCache.count).toEqual(n);
                         expect(RedisCache.count).toBeGreaterThan(n * 0.8);
                         return [4 /*yield*/, RedisCache.cleanup()];
-                    case 3:
+                    case 2:
                         redis_results = _a.sent();
                         return [4 /*yield*/, MemoryCache.cleanup()];
-                    case 4:
+                    case 3:
                         memory_results = _a.sent();
                         expect(memory_results).toEqual(n);
                         expect(redis_results).toBeGreaterThan(n * 0.7);
@@ -294,7 +312,7 @@ describe('Cache', function () {
                         return [2 /*return*/];
                 }
             });
-        }); }, 40000);
+        }); }, 60000);
     });
 });
 //# sourceMappingURL=index.spec.js.map

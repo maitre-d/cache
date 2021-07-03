@@ -81,6 +81,8 @@ var RedisCacheDriver = /** @class */ (function (_super) {
         var _this = _super.call(this, options) || this;
         _this.count = 0;
         _this.failed = 0;
+        _this.pipeline_index = 0;
+        _this.pending = {};
         _this.cache_delimiter = '__JSON__';
         _this.client = client;
         _this.options = __assign({ segment_key_partial: 'segments', max_queue_size: 20, flush_interval: 5 }, options);
@@ -90,36 +92,79 @@ var RedisCacheDriver = /** @class */ (function (_super) {
         _this.flush_interval = setInterval(function () {
             var pipeline = _this.pipeline;
             _this.pipeline = _this.client.pipeline();
-            pipeline.exec().then();
+            var exec_promise = pipeline.exec();
+            var pending_index = _this.pipeline_index++;
+            _this.pending[pending_index] = exec_promise;
+            exec_promise.then(function () {
+                delete _this.pending[pending_index];
+            });
         }, _this.options.flush_interval);
-        // Max queue size check
-        if (_this.options.max_queue_size > 0) {
-            _this.queue_interval = setInterval(function () {
-                if (_this.queue_size > _this.options.max_queue_size) {
-                    var pipeline = _this.pipeline;
-                    _this.pipeline = _this.client.pipeline();
-                    pipeline.exec().then();
+        client.on('end', function () { return __awaiter(_this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.wait()];
+                    case 1:
+                        _a.sent();
+                        clearTimeout(this.flush_interval);
+                        if (this.queue_interval)
+                            clearTimeout(this.queue_interval);
+                        return [2 /*return*/];
                 }
-            }, 1);
-        }
-        client.on('end', function () {
-            clearTimeout(_this.flush_interval);
-            if (_this.queue_interval)
-                clearTimeout(_this.queue_interval);
-        });
+            });
+        }); });
         return _this;
     }
     Object.defineProperty(RedisCacheDriver.prototype, "queue_size", {
         /** Returns the current queue size of request queue */
         get: function () {
-            // NOTE: _queue is the internal reference to pending commands
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            return this.pipeline._queue.length;
+            return this.pipeline.length;
         },
         enumerable: false,
         configurable: true
     });
+    Object.defineProperty(RedisCacheDriver.prototype, "is_pending", {
+        /** Indicate if pipelines are pending response */
+        get: function () {
+            return Object.keys(this.pending).length > 0;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    /** Wait for pending queues to clear */
+    RedisCacheDriver.prototype.wait = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, Promise.all(Object.values(this.pending))];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    RedisCacheDriver.prototype.$queue = function (command, params, cb) {
+        var _this = this;
+        var current_pipeline = this.pipeline;
+        if (this.options.max_queue_size > 0) {
+            if (this.queue_size >= this.options.max_queue_size) {
+                this.pipeline = this.client.pipeline();
+                var exec_promise = current_pipeline.exec();
+                var pending_index_1 = this.pipeline_index++;
+                this.pending[pending_index_1] = exec_promise;
+                exec_promise.then(function () {
+                    delete _this.pending[pending_index_1];
+                });
+            }
+        }
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        var _a = this.pipeline, _b = command, func = _a[_b];
+        if (cb)
+            func.call.apply(func, __spreadArray(__spreadArray([this.pipeline], params), [cb]));
+        else
+            func.call.apply(func, __spreadArray([this.pipeline], params));
+    };
     /** Get a cached value from redis */
     RedisCacheDriver.prototype.get = function (key) {
         return __awaiter(this, void 0, void 0, function () {
@@ -128,7 +173,7 @@ var RedisCacheDriver = /** @class */ (function (_super) {
             return __generator(this, function (_a) {
                 cache_key = this.generate_encoded_cache_key(key);
                 return [2 /*return*/, new Promise(function (resolve, reject) {
-                        _this.pipeline.get(cache_key, function (err, result) {
+                        _this.$queue('get', [cache_key], function (err, result) {
                             if (err)
                                 reject(err);
                             else
@@ -167,7 +212,7 @@ var RedisCacheDriver = /** @class */ (function (_super) {
                 }
                 if (expiration > 0) {
                     resolved = new Promise(function (resolve, reject) {
-                        _this.pipeline.set(cache_key, encoded_value, 'PX', expiration, function (err, result) {
+                        _this.$queue('set', [cache_key, encoded_value, 'PX', expiration], function (err, result) {
                             if (err)
                                 reject(err);
                             else
@@ -177,7 +222,7 @@ var RedisCacheDriver = /** @class */ (function (_super) {
                 }
                 else {
                     resolved = new Promise(function (resolve, reject) {
-                        _this.pipeline.set(cache_key, encoded_value, function (err, result) {
+                        _this.$queue('set', [cache_key, encoded_value], function (err, result) {
                             if (err)
                                 reject(err);
                             else
@@ -187,8 +232,8 @@ var RedisCacheDriver = /** @class */ (function (_super) {
                 }
                 // Set segments. We do not need to wait for these as they aren't necessary real-time
                 cache_segments.forEach(function (segment_key) {
-                    _this.pipeline.sadd(_this.segment_cache_key, segment_key);
-                    _this.pipeline.sadd(segment_key, cache_key);
+                    _this.$queue('sadd', [_this.segment_cache_key, segment_key]);
+                    _this.$queue('sadd', [segment_key, cache_key]);
                 });
                 return [2 /*return*/, resolved.then(function (result) {
                         if (result === 'OK') {
